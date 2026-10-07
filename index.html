@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Formulario Antisoborno</title>
+    <style>
+        :root { --primary: #0f172a; --bg: #f8fafc; }
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: var(--bg); padding: 20px; color: #333; margin: 0; }
+        .form-container { max-width: 600px; margin: auto; background: white; padding: 25px; border-radius: 10px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); }
+        .logo-container { text-align: center; margin-bottom: 20px; }
+        h2 { text-align: center; color: var(--primary); margin-bottom: 20px; font-size: 18px; text-transform: uppercase; }
+        .form-group { margin-bottom: 15px; }
+        label { display: block; font-weight: bold; margin-bottom: 5px; font-size: 14px; }
+        input, select, textarea { width: 100%; padding: 10px; border: 1px solid #cbd5e1; border-radius: 5px; box-sizing: border-box; font-family: inherit; }
+        button { width: 100%; background: #3b82f6; color: white; border: none; padding: 12px; border-radius: 5px; cursor: pointer; font-weight: bold; font-size: 16px; transition: 0.2s; margin-top: 10px; }
+        button:hover { background: #2563eb; }
+        .success-msg { display: none; background: #dcfce7; color: #166534; padding: 15px; border-radius: 5px; text-align: center; margin-top: 15px; font-weight: bold; }
+
+        /* Optimización final para celulares y tablets */
+        @media (max-width: 640px) {
+            body { padding: 10px; }
+            .form-container { padding: 18px 14px; border-radius: 8px; }
+            .logo-container { margin-bottom: 14px; }
+            .logo-container h3 { font-size: 15px; line-height: 1.3; }
+            h2 { font-size: 16px; line-height: 1.35; margin-bottom: 16px; }
+            label { font-size: 13px; }
+            input, select, textarea {
+                font-size: 16px; /* evita zoom automático en iPhone */
+                min-height: 44px;
+            }
+            textarea { min-height: 90px; }
+            button { min-height: 46px; font-size: 16px; }
+        }
+        @media (max-width: 360px) {
+            body { padding: 6px; }
+            .form-container { padding: 15px 10px; }
+        }
+    </style>
+</head>
+<body>
+
+    <div class="form-container">
+        <div class="logo-container">
+            <h3 style="margin: 0; color: #333;">ALCALDÍA MUNICIPAL DE SANTA ANA ESTE</h3>
+        </div>
+        
+        <h2>Registro de Regalos, Hospitalidades y Beneficios</h2>
+        
+        <form id="registroForm">
+            <div class="form-group">
+                <label>Nombre del Funcionario o Empleado:</label>
+                <input type="text" id="nombre" required placeholder="Ej. Juan Pérez">
+            </div>
+
+            <div class="form-group">
+                <label>Cargo:</label>
+                <input type="text" id="cargo" required placeholder="Ej. Inspector">
+            </div>
+
+            <div class="form-group">
+                <label>Unidad o Gerencia / u otro:</label>
+                <input type="text" id="unidad" required placeholder="Ej. Catastro">
+            </div>
+
+            <div class="form-group">
+                <label>Número de Celular:</label>
+                <input type="tel" id="celular" required placeholder="Ej. 70001234">
+            </div>
+
+            <div class="form-group">
+                <label>Detalle del tipo de Beneficio:</label>
+                <select id="tipo" required>
+                    <option value="">Seleccione una opción</option>
+                    <option value="Regalo">Regalo</option>
+                    <option value="Hospitalidad">Hospitalidad</option>
+                    <option value="Donacion">Donación</option>
+                    <option value="Obsequio">Obsequio Comercial</option>
+                    <option value="Otro">Otro</option>
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label>Detalle de lo recibido (Descripción):</label>
+                <textarea id="detalle" rows="3" required placeholder="Describa el beneficio recibido..."></textarea>
+            </div>
+
+            <div class="form-group">
+                <label>Monto estimado de lo obtenido ($):</label>
+                <input type="number" id="monto" required min="0" step="0.01" placeholder="0.00">
+            </div>
+
+            <div class="form-group">
+                <label>Nombre de la persona que entrega el beneficio:</label>
+                <input type="text" id="entregador" required>
+            </div>
+
+            <div class="form-group">
+                <label>Relación con la municipalidad:</label>
+                <select id="relacion" required>
+                    <option value="">Seleccione una opción</option>
+                    <option value="Proveedor">Proveedor</option>
+                    <option value="Contratista">Contratista</option>
+                    <option value="Contribuyente">Contribuyente</option>
+                    <option value="Ciudadano">Ciudadano</option>
+                    <option value="Otro">Otro</option>
+                </select>
+            </div>
+
+            <button type="submit" id="btnEnviar">Enviar Registro</button>
+        </form>
+
+        <div id="mensajeExito" class="success-msg">
+            ¡Formulario enviado correctamente! El área Antisoborno revisará su solicitud.
+        </div>
+    </div>
+
+    <script>
+        // PEGA TU URL DE APPS SCRIPT AQUÍ
+        const urlAPI = "https://script.google.com/macros/s/AKfycbyBQDH3VEgusAyM_0RcnhSb7tLYWnHnsKaSGIgnVvMpUBC4z62ACYoGomXBJaL0ZruD/exec"; 
+
+        document.getElementById("registroForm").addEventListener("submit", function(e) {
+            e.preventDefault();
+            
+            let btn = document.getElementById("btnEnviar");
+            btn.innerText = "Enviando...";
+            btn.disabled = true;
+
+            let fechaHoy = new Date();
+            let dia = String(fechaHoy.getDate()).padStart(2, '0');
+            let mes = String(fechaHoy.getMonth() + 1).padStart(2, '0');
+            let anio = fechaHoy.getFullYear();
+            let fechaStr = `${dia}/${mes}/${anio}`;
+
+            let payload = {
+                action: "registrar",
+                fecha: fechaStr,
+                nombre: document.getElementById("nombre").value,
+                cargo: document.getElementById("cargo").value,
+                unidad: document.getElementById("unidad").value,
+                celular: document.getElementById("celular").value,
+                tipo: document.getElementById("tipo").value,
+                detalle: document.getElementById("detalle").value,
+                monto: document.getElementById("monto").value,
+                entregador: document.getElementById("entregador").value,
+                relacion: document.getElementById("relacion").value
+            };
+
+            fetch(urlAPI, {
+                method: "POST",
+                body: JSON.stringify(payload)
+            })
+            .then(res => res.json())
+            .then(data => {
+                if(data.success) {
+                    document.getElementById("registroForm").style.display = "none";
+                    document.getElementById("mensajeExito").style.display = "block";
+                }
+            })
+            .catch(error => {
+                alert("Error al enviar: " + error);
+                btn.innerText = "Enviar Registro";
+                btn.disabled = false;
+            });
+        });
+    </script>
+</body>
+</html>

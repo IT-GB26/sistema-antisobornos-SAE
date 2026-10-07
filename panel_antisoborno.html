@@ -1,0 +1,568 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>Panel de Función Antisoborno</title>
+    
+    <style>
+        :root { --primary: #0f172a; --bg: #f8fafc; }
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: var(--bg); padding: 20px; color: #333; margin: 0; }
+        .admin-container { position: relative; z-index: 10; max-width: 1300px; margin: auto; background: white; padding: 20px; border-radius: 10px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); }
+        .header-panel { display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #f1f5f9; padding-bottom: 10px; margin-bottom: 20px; }
+        h2 { margin: 0; color: var(--primary); }
+        .btn-modern { background: #3b82f6; color: white; border: none; padding: 8px 16px; border-radius: 5px; cursor: pointer; font-weight: 600; transition: 0.2s; }
+        .btn-modern:hover { background: #2563eb; }
+        
+        table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+        th, td { padding: 12px 10px; border-bottom: 1px solid #e2e8f0; text-align: left; }
+        th { background: #f8fafc; font-weight: 600; color: #475569; }
+        tr:hover { background-color: #f1f5f9; }
+        
+        .badge { padding: 5px 10px; border-radius: 20px; font-size: 12px; font-weight: bold; display: inline-block; }
+        .badge.pendiente { background: #fef9c3; color: #854d0e; }
+        .badge.aprobada { background: #dcfce7; color: #166534; }
+        .badge.denegada { background: #fee2e2; color: #991b1b; }
+
+        .btn-accion { padding: 6px 10px; border: none; border-radius: 4px; cursor: pointer; font-size: 12px; font-weight: bold; color: white;}
+        .btn-evaluar { background: #0f172a; }
+        .btn-vista { background: #475569; }
+        .btn-descargar { background: #0284c7; } 
+        .btn-whatsapp { background: #25D366; color: white; display: inline-flex; align-items: center; gap: 4px;}
+        .btn-subir { background: #f59e0b; color: white; }
+        .btn-ver { background: #10b981; color: white; }
+        .btn-reemplazar { background: #f59e0b; color: white; }
+        .btn-eliminar-archivo { background: #dc2626; color: white; }
+
+        /* MODALES */
+        .modal-overlay { display: none; position: fixed; top:0; left:0; width:100%; height:100%; background: rgba(0,0,0,0.6); align-items: center; justify-content: center; z-index: 100; }
+        .modal { background: white; padding: 25px; border-radius: 8px; width: 500px; box-shadow: 0 10px 25px rgba(0,0,0,0.3); max-height: 90vh; overflow-y: auto; }
+        .modal h3 { margin-top: 0; color: var(--primary); border-bottom: 2px solid #e2e8f0; padding-bottom: 10px;}
+        .resumen-datos { background: #f8fafc; border: 1px solid #e2e8f0; padding: 15px; border-radius: 6px; margin-bottom: 15px; font-size: 14px; }
+        .resumen-datos p { margin: 5px 0; }
+        .resumen-datos hr { border: 0; border-top: 1px solid #cbd5e1; margin: 8px 0; }
+        .modal textarea { width: 100%; height: 80px; margin-top: 5px; margin-bottom: 15px; border-radius: 5px; border: 1px solid #ccc; padding: 10px; box-sizing: border-box; font-family: inherit;}
+        .modal-buttons { display: flex; gap: 10px; justify-content: flex-end; border-top: 1px solid #e2e8f0; padding-top: 15px;}
+        .btn-aprobar { background: #166534; color: white; padding: 8px 15px; border:none; border-radius:4px; cursor: pointer; font-weight: bold;}
+        .btn-rechazar { background: #991b1b; color: white; padding: 8px 15px; border:none; border-radius:4px; cursor: pointer; font-weight: bold;}
+        .btn-cancelar { background: #64748b; color: white; padding: 8px 15px; border:none; border-radius:4px; cursor: pointer; font-weight: bold;}
+
+        /* ESTILOS DE IMPRESIÓN CON MEMBRETE DE FONDO */
+        #vistaImpresion { display: none; }
+        @media print {
+            @page { margin: 0; size: letter; }
+            body * { visibility: hidden; }
+            body { margin: 0; padding: 0; background: white; }
+            #panelAdmin, .modal-overlay { display: none !important; }
+            
+            #vistaImpresion, #vistaImpresion * { visibility: visible; }
+            #vistaImpresion { 
+                display: block !important; 
+                position: absolute; 
+                left: 0; 
+                top: 0; 
+                width: 100%; 
+                font-family: Arial, sans-serif; 
+                font-size: 11px; 
+                color: black; 
+            }
+            
+            /* IMAGEN DE FONDO (MEMBRETE) */
+            .bg-membrete { 
+                position: fixed; 
+                top: 0; 
+                left: 0; 
+                width: 100%; 
+                height: 100%; 
+                z-index: -1; 
+            }
+
+            /* PADDING SUPERIOR DE 150px PARA DEJAR LIBRE EL ESCUDO SUPERIOR DEL MEMBRETE */
+            .contenido-impresion { 
+                position: relative; 
+                z-index: 2; 
+                padding: 150px 45px 30px 45px; 
+                box-sizing: border-box; 
+            }
+
+            p { margin: 4px 0 !important; } 
+            
+            /* OBLIGATORIO PARA QUE CHROME MUESTRE LA IMAGEN DE FONDO */
+            * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
+        }
+        /* VISTA PREVIA EN PANTALLA */
+        #previewModal .modal { width: min(900px, 94vw); max-height: 94vh; }
+        .preview-toolbar { display:flex; gap:8px; justify-content:flex-end; flex-wrap:wrap; margin-bottom:12px; }
+        .preview-page-wrap { background:#cbd5e1; padding:18px; overflow:auto; max-height:72vh; }
+        #previewPage { position:relative; width:816px; height:1056px; min-height:1056px; max-height:1056px; margin:auto; background:white; overflow:hidden; box-shadow:0 3px 14px rgba(0,0,0,.2); font-family:Arial,sans-serif; color:#000; }
+        #previewPage .bg-membrete-preview { position:absolute; inset:0; width:100%; height:100%; object-fit:fill; z-index:0; }
+        #previewPage .contenido-preview { position:relative; z-index:1; padding:150px 45px 30px; box-sizing:border-box; font-size:11px; }
+        @media (max-width: 900px) { #previewPage { transform-origin:top left; } }
+    </style>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+</head>
+<body>
+
+    <div class="admin-container" id="panelAdmin">
+        <div class="header-panel">
+            <h2>Panel de Control Antisoborno</h2>
+            <button class="btn-modern" onclick="cargarSolicitudes()">Actualizar Datos</button>
+        </div>
+        <table>
+            <thead>
+                <tr>
+                    <th>Nº</th>
+                    <th>Fecha</th>
+                    <th>Empleado</th>
+                    <th>Tipo Beneficio</th>
+                    <th>Estado</th>
+                    <th>Respaldo</th>
+                    <th>Acciones</th>
+                </tr>
+            </thead>
+            <tbody id="tablaCuerpo"></tbody>
+        </table>
+    </div>
+
+    <!-- Modales -->
+    <div class="modal-overlay" id="evalModal">
+        <div class="modal">
+            <h3>Evaluar Solicitud de Beneficio</h3>
+            <div id="modalResumenDatos"></div>
+            <label><strong>Motivo de aprobación o negación:</strong></label>
+            <textarea id="modalMotivo" placeholder="Escriba la justificación aquí..."></textarea>
+            <div class="modal-buttons">
+                <button class="btn-cancelar" onclick="cerrarModal()">Cancelar</button>
+                <button class="btn-rechazar" onclick="enviarEvaluacion('Denegada')">Denegar</button>
+                <button class="btn-aprobar" onclick="enviarEvaluacion('Aprobada')">Aprobar</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal-overlay" id="uploadModal">
+        <div class="modal">
+            <h3>Subir Documento Firmado</h3>
+            <p>Sube el PDF o la fotografía escaneada con las firmas físicas de respaldo.</p>
+            <input type="file" id="fileInput" accept=".pdf, image/jpeg, image/png" style="margin: 15px 0; width: 100%; padding: 10px; border: 1px dashed #ccc;">
+            <div class="modal-buttons">
+                <button class="btn-cancelar" onclick="cerrarModalArchivo()">Cancelar</button>
+                <button class="btn-aprobar" id="btnSubir" onclick="subirArchivoFirmado()">Subir Archivo</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal-overlay" id="previewModal">
+        <div class="modal">
+            <h3>Vista previa del documento</h3>
+            <div class="preview-toolbar">
+                <button class="btn-cancelar" onclick="cerrarVistaPrevia()">Cerrar</button>
+                <button class="btn-modern" onclick="imprimirActual()">🖨️ Imprimir</button>
+                <button class="btn-accion btn-descargar" onclick="descargarActual()">⬇️ Descargar PDF</button>
+            </div>
+            <div class="preview-page-wrap"><div id="previewPage"></div></div>
+        </div>
+    </div>
+
+    <!-- PLANTILLA DE IMPRESIÓN CON MEMBRETE -->
+    <div id="vistaImpresion">
+        <img src="img/MEMBRETE.jpg" class="bg-membrete" alt="Membrete Fondo">
+
+        <div class="contenido-impresion">
+            <h3 style="text-align: center; font-size: 13px; text-transform: uppercase; margin-bottom: 12px; margin-top: 0;">
+                Formulario de Registro de Regalos, Hospitalidades y Beneficios<br>
+                Similares de la Municipalidad de Santa Ana Este
+            </h3>
+
+            <div style="display: flex; justify-content: space-between; margin-bottom: 4px;"><span><b>Fecha de Registro:</b> <span id="p-fecha" style="text-decoration: underline;"></span></span></div>
+            <div style="display: flex; justify-content: space-between; margin-bottom: 4px;">
+                <span><b>Nombre del funcionario o empleado:</b> <span id="p-nombre" style="text-decoration: underline;"></span></span>
+                <span><b>Cargo:</b> <span id="p-cargo" style="text-decoration: underline;"></span></span>
+            </div>
+            <div style="display: flex; justify-content: space-between; margin-bottom: 4px;">
+                <span><b>Unidad o Gerencia:</b> <span id="p-unidad" style="text-decoration: underline;"></span></span>
+                <span><b>Celular:</b> <span id="p-celular" style="text-decoration: underline;"></span></span>
+            </div>
+            
+            <p style="margin-top: 8px !important;"><b>Detalle del tipo de beneficio:</b> <span id="p-tipo" style="font-weight: bold; text-decoration: underline; margin-left: 5px;"></span></p>
+            <p style="font-weight: bold; margin-bottom: 3px;">Detalle de lo recibido:</p>
+            <div id="p-detalle" style="border: 1px solid black; min-height: 30px; padding: 6px; margin-bottom: 6px;"></div>
+
+            <p style="margin-bottom: 4px;"><b>Monto estimado:</b> $ <span id="p-monto" style="text-decoration: underline;"></span></p>
+            <p style="margin-bottom: 4px;"><b>Entregado por:</b> <span id="p-entregador" style="text-decoration: underline;"></span></p>
+            <p style="margin-bottom: 20px !important;"><b>Relación con la municipalidad:</b> <span id="p-relacion" style="text-decoration: underline;"></span></p>
+
+            <div style="margin-top: 0; margin-bottom: 18px; text-align: center;">
+                <div style="border-top: 2px dashed black; width: 100%; margin-bottom: 14px;"></div>
+                <div style="font-weight: bold; font-size: 11.5px; margin-bottom: 0;">USO EXCLUSIVO DE LA FUNCIÓN ANTISOBORNO</div>
+            </div>
+
+            <div style="display: flex; justify-content: space-around; font-weight: bold; margin-bottom: 18px;">
+                <div>Solicitud Aprobada: <span id="check-aprobada" style="display: inline-block; width: 13px; height: 13px; border: 1px solid black; text-align: center; line-height: 13px; margin-left: 4px;"></span></div>
+                <div>Solicitud Denegada: <span id="check-denegada" style="display: inline-block; width: 13px; height: 13px; border: 1px solid black; text-align: center; line-height: 13px; margin-left: 4px;"></span></div>
+            </div>
+
+            <p style="margin-bottom: 12px !important;"><b>Motivo de aprobación o negación:</b></p>
+            <div id="p-motivo" style="border: 1px solid black; min-height: 25px; padding: 6px; margin-bottom: 28px;"></div>
+
+            <!-- SECCIÓN DE FIRMAS -->
+            <div style="font-size: 10px; margin-top: 5px;">
+                <div style="text-align: center; margin-bottom: 42px;">
+                    <p style="margin: 0;">Firma del empleado municipal que reporta:</p>
+                    <div style="height: 34px; min-height: 34px;"></div>
+                    <div style="border-bottom: 1px solid black; width: 200px; margin: 0 auto 6px auto;"></div>
+                    <p style="margin: 0; font-weight: bold;" id="p-firma-empleado"></p>
+                </div>
+
+                <div style="font-weight: bold; margin: 0;">Firma y sello de la Función Antisoborno:</div>
+                <!-- Espacio amplio reservado para firmas y sellos de la Función Antisoborno. -->
+                <div style="height: 68px; min-height: 68px; display:block; flex:none;"></div>
+                <div style="display: flex; justify-content: space-between; text-align: center; align-items: flex-start;">
+                    <div style="width: 30%;">
+                        <div style="border-bottom: 1px solid black; width: 100%; margin-bottom: 12px;"></div>
+                        <p style="margin: 0; font-weight: bold; font-size: 9px; white-space: nowrap;">Lic. José Alberto Hernández Z.</p>
+                        <p style="margin: 0; font-size: 8.5px;">Jefe de Talento Humano</p>
+                    </div>
+                    <div style="width: 30%;">
+                        <div style="border-bottom: 1px solid black; width: 100%; margin-bottom: 12px;"></div>
+                        <p style="margin: 0; font-weight: bold; font-size: 9px; white-space: nowrap;">Licda. Iveth Alicia Rivera G.</p>
+                        <p style="margin: 0; font-size: 8.5px;">Encargada del Canal de Denuncias</p>
+                    </div>
+                    <div style="width: 30%;">
+                        <div style="border-bottom: 1px solid black; width: 100%; margin-bottom: 12px;"></div>
+                        <p style="margin: 0; font-weight: bold; font-size: 9px; white-space: nowrap;">Licda. Andrea Sofía Ramírez T.</p>
+                        <p style="margin: 0; font-size: 8.5px;">Oficial de Cumplimiento</p>
+                    </div>
+                </div>
+            </div>
+        </div> 
+    </div>
+
+    <script>
+        // PEGA TU URL DE APPS SCRIPT AQUÍ
+        const urlAPI = "https://script.google.com/macros/s/AKfycbyBQDH3VEgusAyM_0RcnhSb7tLYWnHnsKaSGIgnVvMpUBC4z62ACYoGomXBJaL0ZruD/exec"; 
+        let registrosGlobales = [];
+        let idActual = null;
+
+        function formatearFecha(fechaStr) {
+            if (!fechaStr) return "";
+            fechaStr = String(fechaStr);
+            if(fechaStr.includes('T')) {
+                let partes = fechaStr.split('T')[0].split('-');
+                if(partes.length === 3) return `${partes[2]}/${partes[1]}/${partes[0]}`;
+            }
+            return fechaStr;
+        }
+
+        async function cargarSolicitudes() {
+            document.getElementById("tablaCuerpo").innerHTML = "<tr><td colspan='7' style='text-align:center;'>Cargando datos...</td></tr>";
+            return fetch(urlAPI + "?t=" + Date.now(), { cache: "no-store" })
+            .then(res => res.json())
+            .then(data => {
+                registrosGlobales = data;
+                let html = "";
+                data.forEach(r => {
+                    let claseBadge = r.estado.toLowerCase();
+                    let fechaLimpia = formatearFecha(r.fecha); 
+
+                    html += `<tr>
+                        <td><b>${r.numero || "-"}</b></td>
+                        <td>${fechaLimpia}</td>
+                        <td><b>${r.nombre}</b><br><small>${r.celular}</small></td>
+                        <td>${r.tipo}</td>
+                        <td><span class="badge ${claseBadge}">${r.estado}</span></td>
+                        <td>`;
+                        
+                    if(r.estado !== 'Pendiente') {
+                        if (r.archivo && r.archivo !== "") {
+                            html += `<div style="display:flex;gap:5px;flex-wrap:wrap;">
+                                <button class="btn-accion btn-ver" onclick="window.open('${r.archivo}', '_blank')">👁 Ver respaldo</button>
+                                <button class="btn-accion btn-reemplazar" onclick="abrirModalArchivo('${r.id}')">🔄 Reemplazar</button>
+                                <button class="btn-accion btn-eliminar-archivo" onclick="eliminarArchivoFirmado('${r.id}')">🗑 Eliminar</button>
+                              </div>`;
+                        } else {
+                            html += `<button class="btn-accion btn-subir" onclick="abrirModalArchivo('${r.id}')">📁 Subir Firmado</button>`;
+                        }
+                    } else {
+                        html += `-`;
+                    }
+
+                    html += `</td><td><div style="display: flex; gap: 5px; flex-wrap: wrap;">`;
+                    
+                    if(r.estado === 'Pendiente') {
+                        html += `<button class="btn-accion btn-vista" onclick="mostrarVistaPrevia('${r.id}')">👁️ Vista previa</button>
+                                 <button class="btn-accion btn-descargar" onclick="descargarPDF('${r.id}')">⬇️ Descargar PDF</button>
+                                 <button class="btn-accion btn-evaluar" onclick="abrirModal('${r.id}')">📝 Evaluar</button>`;
+                    } else {
+                        html += `<button class="btn-accion btn-vista" onclick="mostrarVistaPrevia('${r.id}')">👁️ Vista previa</button>
+                                 <button class="btn-accion btn-descargar" onclick="descargarPDF('${r.id}')">⬇️ Descargar PDF</button>
+                                 <button class="btn-accion btn-whatsapp" onclick="enviarWhatsApp('${r.celular}', '${r.nombre}', '${r.estado}')">💬 WhatsApp</button>`;
+                    }
+                    html += `</div></td></tr>`;
+                });
+                document.getElementById("tablaCuerpo").innerHTML = html;
+            });
+        }
+
+        function aplicarRegistroPlantilla(reg) {
+            if (!reg) throw new Error("No se encontró el registro seleccionado.");
+            document.getElementById("p-fecha").innerText = formatearFecha(reg.fecha);
+            document.getElementById("p-nombre").innerText = reg.nombre || "";
+            document.getElementById("p-cargo").innerText = reg.cargo || "";
+            document.getElementById("p-unidad").innerText = reg.unidad || "";
+            document.getElementById("p-celular").innerText = reg.celular || "";
+            document.getElementById("p-tipo").innerText = reg.tipo || "";
+            document.getElementById("p-detalle").innerText = reg.detalle || "";
+            document.getElementById("p-monto").innerText = reg.monto || "";
+            document.getElementById("p-entregador").innerText = reg.entregador || "";
+            document.getElementById("p-relacion").innerText = reg.relacion || "";
+            const estadoNormalizado = String(reg.estado || "Pendiente").trim().toLowerCase();
+            const motivoLimpio = String(reg.motivo || "").trim();
+            document.getElementById("p-motivo").innerText = motivoLimpio || (estadoNormalizado === "pendiente" ? "Pendiente de evaluación" : "Sin motivo registrado");
+            document.getElementById("p-firma-empleado").innerText = reg.nombre || "";
+            document.getElementById("check-aprobada").innerText = estadoNormalizado === "aprobada" ? "X" : "";
+            document.getElementById("check-denegada").innerText = estadoNormalizado === "denegada" ? "X" : "";
+            return reg;
+        }
+
+        async function obtenerRegistroActualizado(id) {
+            const res = await fetch(urlAPI + "?id=" + encodeURIComponent(id) + "&t=" + Date.now(), { cache: "no-store" });
+            const data = await res.json();
+            if (!res.ok || (data && data.success === false)) throw new Error(data.error || "No se pudo consultar el registro.");
+            const reg = Array.isArray(data) ? data.find(r => String(r.id) === String(id)) : data;
+            if (!reg || !reg.id) throw new Error("No se encontró el registro actualizado.");
+            const pos = registrosGlobales.findIndex(r => String(r.id) === String(id));
+            if (pos >= 0) registrosGlobales[pos] = reg; else registrosGlobales.push(reg);
+            return reg;
+        }
+
+        async function construirVistaPrevia(id) {
+            idActual = id;
+            // SIEMPRE leer el registro actual desde Apps Script antes de crear el documento.
+            const reg = await obtenerRegistroActualizado(id);
+            const estado = String(reg.estado || "Pendiente").trim().toLowerCase();
+            const motivo = String(reg.motivo || "").trim();
+
+            // Clonamos la plantilla, pero cambiamos TODOS los IDs para evitar que el navegador
+            // escriba accidentalmente en la plantilla oculta en vez de la vista previa.
+            const origen = document.getElementById("vistaImpresion");
+            const destino = document.getElementById("previewPage");
+            let html = origen.innerHTML
+                .replace('class="bg-membrete"', 'class="bg-membrete-preview"')
+                .replace('class="contenido-impresion"', 'class="contenido-preview"')
+                .replace(/id="p-/g, 'id="pv-')
+                .replace(/id="check-/g, 'id="pv-check-');
+            destino.innerHTML = html;
+
+            const poner = (id, valor) => {
+                const el = destino.querySelector('#' + id);
+                if (el) el.textContent = valor == null ? "" : String(valor);
+            };
+            poner("pv-fecha", formatearFecha(reg.fecha));
+            poner("pv-nombre", reg.nombre);
+            poner("pv-cargo", reg.cargo);
+            poner("pv-unidad", reg.unidad);
+            poner("pv-celular", reg.celular);
+            poner("pv-tipo", reg.tipo);
+            poner("pv-detalle", reg.detalle);
+            poner("pv-monto", reg.monto);
+            poner("pv-entregador", reg.entregador);
+            poner("pv-relacion", reg.relacion);
+            poner("pv-firma-empleado", reg.nombre);
+            poner("pv-motivo", motivo || (estado === "pendiente" ? "Pendiente de evaluación" : "Sin motivo registrado"));
+            poner("pv-check-aprobada", estado === "aprobada" ? "X" : "");
+            poner("pv-check-denegada", estado === "denegada" ? "X" : "");
+
+            // Diagnóstico visible en consola para comprobar exactamente qué devolvió el servidor.
+            console.log("Registro usado para documento:", {id: reg.id, estado: reg.estado, motivo: reg.motivo});
+            return reg;
+        }
+
+        async function mostrarVistaPrevia(id) {
+            try {
+                await construirVistaPrevia(id);
+                document.getElementById("previewModal").style.display = "flex";
+            } catch (e) { alert("No se pudo actualizar la vista previa: " + e.message); }
+        }
+
+        function cerrarVistaPrevia() { document.getElementById("previewModal").style.display = "none"; }
+
+        async function imprimirActual() {
+            if (!idActual) return;
+            try {
+                const reg = await obtenerRegistroActualizado(idActual);
+                aplicarRegistroPlantilla(reg);
+                const tituloViejo = document.title;
+                document.title = `Antisoborno_${limpiarNombre(reg.nombre)}`;
+                window.print();
+                setTimeout(() => { document.title = tituloViejo; }, 1000);
+            } catch(e) { alert("No se pudo actualizar el documento: " + e.message); }
+        }
+
+        function limpiarNombre(nombre) {
+            return String(nombre || "registro").normalize("NFD").replace(/[\u0300-\u036f]/g, "")
+                .replace(/[^a-zA-Z0-9_-]+/g, "_").replace(/^_+|_+$/g, "");
+        }
+
+        async function descargarPDF(id) {
+            try { await construirVistaPrevia(id); await descargarActual(); }
+            catch(e) { alert("No se pudo generar el PDF actualizado: " + e.message); }
+        }
+
+        async function descargarActual() {
+            if (!idActual) return;
+            const reg = registrosGlobales.find(r => String(r.id) === String(idActual));
+            const elemento = document.getElementById("previewPage");
+            if (!elemento || !reg) return;
+            if (typeof html2pdf === "undefined") { alert("No se pudo cargar el generador PDF."); return; }
+            const nombre = `Antisoborno_${limpiarNombre(reg.nombre)}_${String(reg.numero || '')}.pdf`;
+            // Renderizamos TODA la hoja como una sola imagen y la insertamos en UNA sola página PDF.
+            // Esto evita que html2pdf divida el membrete y el formulario en páginas separadas.
+            const imgMembrete = elemento.querySelector('.bg-membrete-preview');
+            if (imgMembrete && !imgMembrete.complete) {
+                await new Promise((resolve, reject) => {
+                    imgMembrete.onload = resolve;
+                    imgMembrete.onerror = () => reject(new Error('No se pudo cargar el membrete.'));
+                });
+            }
+            if (typeof html2canvas === 'undefined' && typeof html2pdf !== 'undefined') {
+                // html2pdf incluye html2canvas internamente, pero lo exponemos mediante worker si hace falta.
+                const worker = html2pdf().set({ html2canvas:{scale:2,useCORS:true,backgroundColor:'#ffffff'} }).from(elemento);
+                const canvas = await worker.toCanvas().get('canvas');
+                const imgData = canvas.toDataURL('image/jpeg', 0.98);
+                const pdf = await worker.toPdf().get('pdf');
+                // El worker puede haber creado páginas extra: generamos un jsPDF limpio si está disponible.
+                if (window.jspdf && window.jspdf.jsPDF) {
+                    const limpio = new window.jspdf.jsPDF({unit:'in',format:'letter',orientation:'portrait'});
+                    limpio.addImage(imgData, 'JPEG', 0, 0, 8.5, 11);
+                    limpio.save(nombre);
+                    return;
+                }
+            }
+            // Ruta principal: usar el html2canvas/jsPDF incluidos por html2pdf.
+            const worker = html2pdf().set({
+                margin: 0,
+                html2canvas: {scale:2,useCORS:true,allowTaint:false,backgroundColor:'#ffffff',scrollX:0,scrollY:0},
+                jsPDF: {unit:'in',format:'letter',orientation:'portrait'}
+            }).from(elemento);
+            const canvas = await worker.toCanvas().get('canvas');
+            const imgData = canvas.toDataURL('image/jpeg', 0.98);
+            if (window.jspdf && window.jspdf.jsPDF) {
+                const pdf = new window.jspdf.jsPDF({unit:'in',format:'letter',orientation:'portrait'});
+                pdf.addImage(imgData, 'JPEG', 0, 0, 8.5, 11);
+                pdf.save(nombre);
+            } else {
+                // Respaldo: forzamos una sola página usando el canvas ya renderizado.
+                await worker.toPdf().save(nombre);
+            }
+        }
+
+        // MODALES
+        function abrirModal(id) {
+            idActual = id;
+            let reg = registrosGlobales.find(r => r.id === id);
+            let fechaMostrada = formatearFecha(reg.fecha);
+            
+            let resumenHTML = `
+                <div style="position: relative; border: 1px solid #cbd5e1; padding: 20px; background: white; border-radius: 4px;">
+                    <div style="text-align: center; margin-bottom: 15px; border-bottom: 2px solid #333; padding-bottom: 10px;">
+                        <h4 style="margin: 0; color: #111; font-size: 13px;">ALCALDÍA MUNICIPAL DE SANTA ANA ESTE</h4>
+                        <span style="font-size: 10px; color: #555; text-transform: uppercase;">Evaluación de Solicitud</span>
+                    </div>
+                    <div style="font-size: 13px; line-height: 1.6; color: #000;">
+                        <p style="margin: 4px 0;"><strong>Fecha:</strong> ${fechaMostrada}</p>
+                        <p style="margin: 4px 0;"><strong>Empleado:</strong> ${reg.nombre}</p>
+                        <p style="margin: 4px 0;"><strong>Cargo / Unidad:</strong> ${reg.cargo} / ${reg.unidad}</p>
+                        <div style="border-top: 1px dashed #999; margin: 10px 0;"></div>
+                        <p style="margin: 4px 0;"><strong>Tipo de Beneficio:</strong> ${reg.tipo}</p>
+                        <p style="margin: 4px 0;"><strong>Monto Estimado:</strong> $${reg.monto}</p>
+                        <p style="margin: 4px 0;"><strong>Detalle:</strong> ${reg.detalle}</p>
+                    </div>
+                </div>
+            `;
+            
+            document.getElementById("modalResumenDatos").innerHTML = resumenHTML;
+            document.getElementById("modalMotivo").value = "";
+            document.getElementById("evalModal").style.display = "flex";
+        }
+        
+        function cerrarModal() { document.getElementById("evalModal").style.display = "none"; }
+
+        async function enviarEvaluacion(estado) {
+            const motivo = document.getElementById("modalMotivo").value.trim();
+            if (!motivo) { alert("Ingrese justificación."); return; }
+            const idEvaluado = idActual;
+            const botones = document.querySelectorAll(".btn-aprobar, .btn-rechazar");
+            botones.forEach(b => b.disabled = true);
+            try {
+                const res = await fetch(urlAPI, { method:"POST", body:JSON.stringify({action:"actualizar", id:idEvaluado, estado, motivo}), cache:"no-store" });
+                const data = await res.json();
+                if (!data.success) throw new Error(data.error || "No se pudo guardar la evaluación.");
+                await obtenerRegistroActualizado(idEvaluado);
+                cerrarModal();
+                await cargarSolicitudes();
+                alert("Evaluación guardada y documento actualizado correctamente.");
+            } catch(e) {
+                alert("Error al guardar la evaluación: " + e.message);
+            } finally { botones.forEach(b => b.disabled = false); }
+        }
+
+        function abrirModalArchivo(id) {
+            idActual = id;
+            document.getElementById("fileInput").value = "";
+            document.getElementById("uploadModal").style.display = "flex";
+        }
+        function cerrarModalArchivo() { document.getElementById("uploadModal").style.display = "none"; }
+
+        function subirArchivoFirmado() {
+            let input = document.getElementById("fileInput");
+            if(input.files.length === 0) { alert("Por favor, seleccione un archivo."); return; }
+            
+            let file = input.files[0];
+            let reader = new FileReader();
+            
+            let btn = document.getElementById("btnSubir");
+            let txtOriginal = btn.innerText;
+            btn.innerText = "⏳ Subiendo a Drive...";
+            btn.disabled = true;
+
+            reader.onload = function(e) {
+                let base64 = e.target.result.split(',')[1];
+                let reg = registrosGlobales.find(r => r.id === idActual);
+                let nombreArchivo = `Firmado_${reg.nombre.replace(/\s+/g, '_')}_${file.name}`;
+
+                fetch(urlAPI, { method: "POST", body: JSON.stringify({ action: "subirArchivo", id: idActual, base64: base64, mimeType: file.type, nombreArchivo: nombreArchivo }) })
+                .then(res => res.json())
+                .then(res => {
+                    if(res.success) {
+                        alert("✅ Archivo subido y guardado exitosamente.");
+                        cerrarModalArchivo();
+                        cargarSolicitudes(); 
+                    } else alert("Error al subir el archivo: " + res.error);
+                }).finally(() => { btn.innerText = txtOriginal; btn.disabled = false; });
+            };
+            reader.readAsDataURL(file);
+        }
+
+        async function eliminarArchivoFirmado(id) {
+            const reg = registrosGlobales.find(r => String(r.id) === String(id));
+            if (!reg || !reg.archivo) { alert("Este registro no tiene un archivo de respaldo."); return; }
+            if (!confirm("¿Desea eliminar el archivo firmado de Drive? Esta acción enviará el archivo a la papelera y quitará el enlace del registro.")) return;
+            try {
+                const resHttp = await fetch(urlAPI, { method: "POST", body: JSON.stringify({ action: "eliminarArchivo", id: id }) });
+                const res = await resHttp.json();
+                if (!res.success) throw new Error(res.error || "No se pudo eliminar el archivo.");
+                alert("✅ Archivo eliminado correctamente.");
+                await cargarSolicitudes();
+            } catch (e) {
+                alert("Error al eliminar el archivo: " + e.message);
+            }
+        }
+
+        function enviarWhatsApp(celular, nombre, estado) {
+            let num = celular.replace(/\D/g, ''); if (!num.startsWith('503') && num.length >= 8) num = '503' + num;
+            window.open(`https://wa.me/${num}?text=Hola ${nombre}, tu solicitud Antisoborno ha sido *${estado.toUpperCase()}*.`, '_blank');
+        }
+
+        window.onload = cargarSolicitudes;
+    </script>
+</body>
+</html>
