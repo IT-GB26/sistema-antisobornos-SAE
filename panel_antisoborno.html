@@ -94,11 +94,13 @@
         .preview-toolbar { display:flex; gap:8px; justify-content:flex-end; flex-wrap:wrap; margin-bottom:12px; }
         .preview-page-wrap { background:#cbd5e1; padding:18px; overflow:auto; max-height:72vh; }
         #previewPage { position:relative; width:816px; height:1056px; min-height:1056px; max-height:1056px; margin:auto; background:white; overflow:hidden; box-shadow:0 3px 14px rgba(0,0,0,.2); font-family:Arial,sans-serif; color:#000; }
-        #previewPage .bg-membrete-preview { position:absolute; inset:0; width:100%; height:100%; object-fit:fill; z-index:0; }
+        #previewPage .bg-membrete-preview { position:absolute; inset:0; width:100%; height:100%; object-fit:contain; z-index:0; }
         #previewPage .contenido-preview { position:relative; z-index:1; padding:150px 45px 30px; box-sizing:border-box; font-size:11px; }
         @media (max-width: 900px) { #previewPage { transform-origin:top left; } }
     </style>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 </head>
 <body>
 
@@ -410,49 +412,67 @@
         async function descargarActual() {
             if (!idActual) return;
             const reg = registrosGlobales.find(r => String(r.id) === String(idActual));
-            const elemento = document.getElementById("previewPage");
-            if (!elemento || !reg) return;
-            if (typeof html2pdf === "undefined") { alert("No se pudo cargar el generador PDF."); return; }
+            const pagina = document.getElementById("previewPage");
+            if (!pagina || !reg) return;
             const nombre = `Antisoborno_${limpiarNombre(reg.nombre)}_${String(reg.numero || '')}.pdf`;
-            // Renderizamos TODA la hoja como una sola imagen y la insertamos en UNA sola página PDF.
-            // Esto evita que html2pdf divida el membrete y el formulario en páginas separadas.
-            const imgMembrete = elemento.querySelector('.bg-membrete-preview');
-            if (imgMembrete && !imgMembrete.complete) {
-                await new Promise((resolve, reject) => {
-                    imgMembrete.onload = resolve;
-                    imgMembrete.onerror = () => reject(new Error('No se pudo cargar el membrete.'));
-                });
-            }
-            if (typeof html2canvas === 'undefined' && typeof html2pdf !== 'undefined') {
-                // html2pdf incluye html2canvas internamente, pero lo exponemos mediante worker si hace falta.
-                const worker = html2pdf().set({ html2canvas:{scale:2,useCORS:true,backgroundColor:'#ffffff'} }).from(elemento);
-                const canvas = await worker.toCanvas().get('canvas');
-                const imgData = canvas.toDataURL('image/jpeg', 0.98);
-                const pdf = await worker.toPdf().get('pdf');
-                // El worker puede haber creado páginas extra: generamos un jsPDF limpio si está disponible.
-                if (window.jspdf && window.jspdf.jsPDF) {
-                    const limpio = new window.jspdf.jsPDF({unit:'in',format:'letter',orientation:'portrait'});
-                    limpio.addImage(imgData, 'JPEG', 0, 0, 8.5, 11);
-                    limpio.save(nombre);
-                    return;
+            const boton = document.querySelector('#previewModal .btn-descargar');
+            if (boton) boton.disabled = true;
+            try {
+                // Obtener las bibliotecas incluidas en html2pdf.
+                const jspdfConstructor = window.jspdf?.jsPDF || window.html2pdf?.jsPDF;
+                if (typeof html2canvas !== 'function' || !jspdfConstructor) {
+                    throw new Error('No se cargaron html2canvas o jsPDF. Compruebe la conexión a Internet.');
                 }
-            }
-            // Ruta principal: usar el html2canvas/jsPDF incluidos por html2pdf.
-            const worker = html2pdf().set({
-                margin: 0,
-                html2canvas: {scale:2,useCORS:true,allowTaint:false,backgroundColor:'#ffffff',scrollX:0,scrollY:0},
-                jsPDF: {unit:'in',format:'letter',orientation:'portrait'}
-            }).from(elemento);
-            const canvas = await worker.toCanvas().get('canvas');
-            const imgData = canvas.toDataURL('image/jpeg', 0.98);
-            if (window.jspdf && window.jspdf.jsPDF) {
-                const pdf = new window.jspdf.jsPDF({unit:'in',format:'letter',orientation:'portrait'});
-                pdf.addImage(imgData, 'JPEG', 0, 0, 8.5, 11);
+                const membrete = pagina.querySelector('.bg-membrete-preview');
+                if (!membrete) throw new Error('No se encontró la imagen del membrete.');
+                if (!membrete.complete) await new Promise((resolve,reject) => {
+                    membrete.addEventListener('load',resolve,{once:true});
+                    membrete.addEventListener('error',reject,{once:true});
+                });
+                if (!membrete.naturalWidth) throw new Error('No se pudo leer img/MEMBRETE.jpg. Verifique el nombre y la carpeta img.');
+
+                // Colocar el membrete ORIGINAL como imagen independiente, sin capturarlo
+                // junto con el HTML. Se respeta la relación de aspecto.
+                const fondoCanvas = document.createElement('canvas');
+                fondoCanvas.width = membrete.naturalWidth;
+                fondoCanvas.height = membrete.naturalHeight;
+                const ctx = fondoCanvas.getContext('2d');
+                ctx.drawImage(membrete,0,0);
+                const fondo = fondoCanvas.toDataURL('image/jpeg',0.98);
+                const pdf = new jspdfConstructor({orientation:'portrait',unit:'pt',format:'letter',compress:true});
+                const ancho = 612, alto = 792;
+                const escala = Math.min(ancho/membrete.naturalWidth, alto/membrete.naturalHeight);
+                const w = membrete.naturalWidth*escala, h = membrete.naturalHeight*escala;
+                pdf.addImage(fondo,'JPEG',(ancho-w)/2,(alto-h)/2,w,h);
+
+                // Capturar ÚNICAMENTE el texto y los campos con transparencia.
+                // Evita alterar o pixelar el membrete durante la conversión.
+                const copia = pagina.cloneNode(true);
+                copia.style.position = 'fixed';
+                copia.style.left = '-10000px';
+                copia.style.top = '0';
+                copia.style.margin = '0';
+                copia.style.boxShadow = 'none';
+                copia.style.background = 'transparent';
+                copia.style.transform = 'none';
+                copia.style.width = '816px';
+                copia.style.height = '1056px';
+                const fondoCopia = copia.querySelector('.bg-membrete-preview');
+                if (fondoCopia) fondoCopia.remove();
+                document.body.appendChild(copia);
+                try {
+                    const capa = await html2canvas(copia,{
+                        scale:2,backgroundColor:null,useCORS:true,
+                        scrollX:0,scrollY:0,width:816,height:1056,
+                        windowWidth:Math.max(document.documentElement.clientWidth,816)
+                    });
+                    pdf.addImage(capa.toDataURL('image/png'),'PNG',0,0,ancho,alto);
+                } finally { copia.remove(); }
                 pdf.save(nombre);
-            } else {
-                // Respaldo: forzamos una sola página usando el canvas ya renderizado.
-                await worker.toPdf().save(nombre);
-            }
+            } catch (e) {
+                console.error('Error al generar PDF:',e);
+                alert('No se pudo generar el PDF: '+e.message);
+            } finally { if (boton) boton.disabled = false; }
         }
 
         // MODALES
