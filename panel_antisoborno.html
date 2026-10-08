@@ -73,6 +73,7 @@
                 left: 0; 
                 width: 100%; 
                 height: 100%; 
+                object-fit: fill;
                 z-index: -1; 
             }
 
@@ -94,7 +95,7 @@
         .preview-toolbar { display:flex; gap:8px; justify-content:flex-end; flex-wrap:wrap; margin-bottom:12px; }
         .preview-page-wrap { background:#cbd5e1; padding:18px; overflow:auto; max-height:72vh; }
         #previewPage { position:relative; width:816px; height:1056px; min-height:1056px; max-height:1056px; margin:auto; background:white; overflow:hidden; box-shadow:0 3px 14px rgba(0,0,0,.2); font-family:Arial,sans-serif; color:#000; }
-        #previewPage .bg-membrete-preview { position:absolute; inset:0; width:100%; height:100%; object-fit:contain; z-index:0; }
+        #previewPage .bg-membrete-preview { position:absolute; inset:0; width:100%; height:100%; object-fit:fill; z-index:0; }
         #previewPage .contenido-preview { position:relative; z-index:1; padding:150px 45px 30px; box-sizing:border-box; font-size:11px; }
         @media (max-width: 900px) { #previewPage { transform-origin:top left; } }
     </style>
@@ -166,7 +167,7 @@
 
     <!-- PLANTILLA DE IMPRESIÓN CON MEMBRETE -->
     <div id="vistaImpresion">
-        <img src="img/MEMBRETE.jpg" class="bg-membrete" alt="Membrete Fondo">
+        <img src="img/MEMBRETE.jpg?v=antisoborno-20261008-2" class="bg-membrete" alt="Membrete Fondo">
 
         <div class="contenido-impresion">
             <h3 style="text-align: center; font-size: 13px; text-transform: uppercase; margin-bottom: 12px; margin-top: 0;">
@@ -353,6 +354,9 @@
                 .replace(/id="p-/g, 'id="pv-')
                 .replace(/id="check-/g, 'id="pv-check-');
             destino.innerHTML = html;
+            // Evita conservar una versión anterior del membrete en caché.
+            const imagenActual = destino.querySelector('.bg-membrete-preview');
+            if (imagenActual) imagenActual.src = 'img/MEMBRETE.jpg?v=antisoborno-20261008-2';
 
             const poner = (id, valor) => {
                 const el = destino.querySelector('#' + id);
@@ -431,19 +435,20 @@
                 });
                 if (!membrete.naturalWidth) throw new Error('No se pudo leer img/MEMBRETE.jpg. Verifique el nombre y la carpeta img.');
 
-                // Colocar el membrete ORIGINAL como imagen independiente, sin capturarlo
-                // junto con el HTML. Se respeta la relación de aspecto.
-                const fondoCanvas = document.createElement('canvas');
-                fondoCanvas.width = membrete.naturalWidth;
-                fondoCanvas.height = membrete.naturalHeight;
-                const ctx = fondoCanvas.getContext('2d');
-                ctx.drawImage(membrete,0,0);
-                const fondo = fondoCanvas.toDataURL('image/jpeg',0.98);
+                // Insertar directamente el JPEG original, sin pasarlo por canvas,
+                // evitando recomprimir y alterar los tonos de la marca de agua.
+                const respuestaMembrete = await fetch(membrete.currentSrc || membrete.src, {cache:'no-store'});
+                if (!respuestaMembrete.ok) throw new Error('No se pudo obtener el membrete original.');
+                const bytesMembrete = await respuestaMembrete.blob();
+                const fondo = await new Promise((resolve,reject) => {
+                    const lector = new FileReader();
+                    lector.onload = () => resolve(lector.result);
+                    lector.onerror = () => reject(new Error('No se pudo leer el membrete.'));
+                    lector.readAsDataURL(bytesMembrete);
+                });
                 const pdf = new jspdfConstructor({orientation:'portrait',unit:'pt',format:'letter',compress:true});
                 const ancho = 612, alto = 792;
-                const escala = Math.min(ancho/membrete.naturalWidth, alto/membrete.naturalHeight);
-                const w = membrete.naturalWidth*escala, h = membrete.naturalHeight*escala;
-                pdf.addImage(fondo,'JPEG',(ancho-w)/2,(alto-h)/2,w,h);
+                pdf.addImage(fondo,'JPEG',0,0,ancho,alto);
 
                 // Capturar ÚNICAMENTE el texto y los campos con transparencia.
                 // Evita alterar o pixelar el membrete durante la conversión.
